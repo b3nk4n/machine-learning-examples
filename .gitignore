@@ -1,0 +1,11 @@
+# compiled python files
+*.pyc
+
+# temporary or generated files
+out/
+tmp/
+
+# PyCharm files
+.idea/
+
+

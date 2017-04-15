@@ -17,12 +17,9 @@ X, y = make_blobs(n_samples=N, centers=centers, n_features=2,
 
 fig, ax = plt.subplots()
 ax.scatter(centers[:, 0], centers[:, 1], marker='o', s=250)
-plt.show()
-
-fig, ax = plt.subplots()
-ax.scatter(centers[:, 0], centers[:, 1], marker='o', s=250)
 ax.scatter(X[:, 0], X[:, 1], marker='o', s=100, c=y, cmap=plt.cm.coolwarm)
 plt.plot()
+plt.show()
 
 points = tf.Variable(X)
 cluster_assignments = tf.Variable(tf.zeros([N], dtype=tf.int64))

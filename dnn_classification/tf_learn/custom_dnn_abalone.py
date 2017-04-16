@@ -11,12 +11,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.learn.python.learn.estimators import model_fn
 
-FLAGS = None
-
 tf.logging.set_verbosity(tf.logging.INFO)
-
-# Learning rate for the model
-LEARNING_RATE = 0.001
 
 
 def maybe_download(train_data, test_data, predict_data):
@@ -113,10 +108,10 @@ def main(_):
     prediction_set = tf.contrib.learn.datasets.base.load_csv_without_header(
         filename=abalone_predict, target_dtype=np.int, features_dtype=np.float32)
 
-    m = CustomModel(LEARNING_RATE)
+    m = CustomModel(FLAGS.learning_rate)
     nn = tf.contrib.learn.Estimator(model_fn=m.build, params=m.params())
 
-    nn.fit(x=training_set.data, y=training_set.target, steps=5000)
+    nn.fit(x=training_set.data, y=training_set.target, steps=FLAGS.train_steps)
 
     ev = nn.evaluate(x=test_set.data, y=test_set.target, steps=1)
     print("Loss: {}".format(ev["loss"]))
@@ -135,9 +130,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--test_data", type=str, default="", help="Path to the test data.")
     parser.add_argument(
-        "--predict_data",
-        type=str,
-        default="",
-        help="Path to the prediction data.")
+        "--predict_data", type=str, default="", help="Path to the prediction data.")
+    parser.add_argument(
+        "--learning_rate", type=float, default=0.001, help="The initial learning rate.")
+    parser.add_argument(
+        "--train_steps", type=int, default=1000, help="The number of training steps.")
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)

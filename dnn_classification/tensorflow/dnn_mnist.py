@@ -8,11 +8,19 @@ from tensorflow.examples.tutorials.mnist import input_data
 def model(input_layer_size):
     # Create the model
     x = tf.placeholder(tf.float32, [None, input_layer_size])
-    weights = tf.Variable(tf.zeros([input_layer_size, 10]))
-    biases = tf.Variable(tf.zeros([10]))
-    y = tf.matmul(x, weights) + biases
-
     y_ = tf.placeholder(tf.float32, [None, 10])
+
+    def _layer(inputs, n_dims, scope):
+        with tf.variable_scope(scope):
+            weights = tf.get_variable('W', [inputs.get_shape().as_list()[-1], n_dims],
+                                      dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+            biases = tf.get_variable('b', [n_dims], dtype=tf.float32)
+            return tf.matmul(inputs, weights) + biases
+
+    y = tf.nn.relu(_layer(x, 10, 'layer1'))
+    y = tf.nn.relu(_layer(y, 10, 'layer2'))
+    y = _layer(y, 10, 'layer3')
+
     cross_entropy = tf.reduce_mean(
         tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
 
@@ -21,7 +29,7 @@ def model(input_layer_size):
 
 def main(_):
     # Import data
-    mnist = input_data.read_data_sets("tmp/mnist", one_hot=True)
+    mnist = input_data.read_data_sets("../../data/tmp/mnist", one_hot=True)
     input_size = mnist.train.images.shape[1]
 
     x, y, y_, loss = model(input_size)

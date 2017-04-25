@@ -1,4 +1,3 @@
-import os
 import sys
 import argparse
 import pandas as pd
@@ -69,9 +68,7 @@ def main(_):
                 plt.plot(tr_x + age.mean(), tr_y)
                 plt.grid(True)
 
-            if not os.path.isdir("out"):
-                os.mkdir("out")
-            plt.savefig("out/plot.svg")
+        plt.show()
 
 
 if __name__ == '__main__':

@@ -52,8 +52,6 @@ def main(_):
             centroids.assign(means),
             cluster_assignments.assign(best_centroids))
 
-    fig, ax = plt.subplots()
-
     iteration = 0
     changed = True
     assignments = None
@@ -74,10 +72,6 @@ def main(_):
         plt.savefig("out/kmeans" + str(iteration) + ".png")
 
     print("Finished after {} iterations.".format(iteration))
-
-    points_val = sess.run(points)
-    ax.scatter(points_val[:, 0], points_val[:, 1],
-               marker='o', s=200, c=assignments, cmap=plt.cm.coolwarm)
 
     end = time.time()
     print("Found in {:.2f} seconds (iteration: {})".format(end - start, iteration))

@@ -25,7 +25,6 @@ def load_data(train_split=0.7, valid_split=0.2):
     list_y = []
     dataset_x = {}
     dataset_y = {}
-
     n_samples = 0
     for i in range(0, array.shape[0] - 6):
         list_x.append(array[i:i + 5].reshape([5, 1]))
@@ -75,17 +74,23 @@ def main(_):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        print("Training...")
         num_batches = int(dataset_x['train'].shape[0] / FLAGS.batch_size)
         batch_idx = 0
         epoch = 1
         for step in range(FLAGS.train_steps):
             if step % num_batches == 0 and step != 0:
+                epoch += 1
+                batch_idx = 0
+
+                # shufle test set
                 perm = np.random.permutation(dataset_x['train'].shape[0])
                 dataset_x['train'] = dataset_x['train'][perm]
                 dataset_y['train'] = dataset_y['train'][perm]
-                batch_idx = 0
-                epoch += 1
+
+                # validation
+                predicted = sess.run(y, feed_dict={x_ph: dataset_x['valid']})
+                mse = mean_squared_error(predicted, dataset_y['valid'])
+                print ("Validation MSE: {:.5f}".format(mse))
 
             batch_x = dataset_x['train'][batch_idx:batch_idx + FLAGS.batch_size]
             batch_y = dataset_y['train'][batch_idx:batch_idx + FLAGS.batch_size]
@@ -96,10 +101,10 @@ def main(_):
             if step % FLAGS.display_step == 0:
                 print("epoch {:02d} step {:05d} loss: {:.5f}".format(epoch, step, loss))
 
-        print("Predictions...")
+        # evaluation
         predicted = sess.run(y, feed_dict={x_ph: dataset_x['test']})
         mse = mean_squared_error(predicted, dataset_y['test'])
-        print ("MSE: {:.5f}".format(mse))
+        print ("Test MSE: {:.5f}".format(mse))
 
         plt.subplot()
         plot_predicted, = plt.plot(predicted, label='predicted')

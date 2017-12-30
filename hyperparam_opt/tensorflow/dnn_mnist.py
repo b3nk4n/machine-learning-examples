@@ -26,14 +26,14 @@ def model(hyperparams):
     targets_ = tf.placeholder(tf.int64, [None])
     keep_prob_ = tf.placeholder_with_default(1.0, [])
 
-    W1 = tf.Variable(tf.truncated_normal([28*28, hyperparams.n_hidden], stddev=0.01))
-    b1 = tf.Variable(tf.zeros([hyperparams.n_hidden]))
+    W1 = tf.Variable(tf.truncated_normal([28*28, hyperparams.n_hidden], stddev=0.01), name='W1')
+    b1 = tf.Variable(tf.zeros([hyperparams.n_hidden]), name='b1')
     h = tf.nn.relu(tf.matmul(x, W1) + b1)
 
     h_dp = tf.nn.dropout(h, keep_prob_)
 
-    W2 = tf.Variable(tf.truncated_normal([hyperparams.n_hidden, 10], stddev=0.01))
-    b2 = tf.Variable(tf.zeros([10]))
+    W2 = tf.Variable(tf.truncated_normal([hyperparams.n_hidden, 10], stddev=0.01), name='W2')
+    b2 = tf.Variable(tf.zeros([10]), name='b2')
     y = tf.matmul(h_dp, W2) + b2
 
     # Define loss

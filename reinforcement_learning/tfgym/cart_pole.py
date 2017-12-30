@@ -116,8 +116,6 @@ class PolicyGradientsNet(object):
         self.gradient_phs = []
         grads_and_vars_feed = []
         for grad, var in grads_and_vars:
-            if grad is None:
-                continue
             gradient_ph = tf.placeholder(tf.float32, shape=grad.get_shape())
             self.gradient_phs.append(gradient_ph)
             grads_and_vars_feed.append((gradient_ph, var))
@@ -138,7 +136,7 @@ class PolicyGradientsNet(object):
                     action_val, gradients_val = self.sess.run(
                         [self.action, self.gradients],
                         feed_dict={self.x_ph: obs.reshape(1, self.n_inputs)})
-                    obs, reward, done, info = env.step(action_val[0][0])  # TODO check why [0][0]? Whats the shape?
+                    obs, reward, done, info = env.step(action_val[0][0])
                     current_rewards.append(reward)
                     current_gradients.append(gradients_val)
                     if done:

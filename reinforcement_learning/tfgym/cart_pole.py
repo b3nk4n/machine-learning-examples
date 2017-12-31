@@ -209,9 +209,11 @@ def main(_):
         policy = PolicyGradientsNet(env.observation_space.shape[0], n_hidden=8)
         policy.build(learning_rate=0.01)
         policy.restore()
-        policy.train(env, n_iterations=100, discount_rate=0.95, n_episodes_per_update=10, n_max_steps=FLAGS.max_steps)
+        policy.train(env, n_iterations=FLAGS.train_steps, discount_rate=0.95, n_episodes_per_update=10, n_max_steps=FLAGS.max_steps)
     else:
         policy = RandomPolicy()
+
+    print('Starting evaluation...')
 
     totals = []
     for episode in range(FLAGS.episodes):
@@ -246,6 +248,8 @@ if __name__ == '__main__':
                         help='The number of episodes to run')
     parser.add_argument('--max_steps', type=int, default=1000,
                         help='The max number of steps per episode')
+    parser.add_argument('--train_steps', type=int, default=100,
+                        help='The number of training steps')
     parser.add_argument('--policy', type=str, default='pg',
                         help='The policy to use')
     parser.add_argument('--render', type=bool, default=True,

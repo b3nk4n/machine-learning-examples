@@ -157,7 +157,7 @@ class PolicyGradientsNet(object):
                 feed_dict[grad_ph] = mean_gradients
             self.sess.run(self.train_op, feed_dict)
             if iteration % save_iterations == 0:
-                self.saver.save(self.sess, './tmp/cartpole_net_pg.ckpt')
+                self.saver.save(self.sess, './tmp/cartpole_agent.ckpt')
 
     def restore(self):
         self.saver = tf.train.Saver()

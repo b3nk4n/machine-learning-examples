@@ -48,7 +48,8 @@ def main(data_dir, log_dir, _run):
     return accuracy
 
     # Labwatch allows to return scalars or dictionaries (where 'optimization_target' is an required key).
-    # Unfortunately, dictionaries are not fully supported
+    # Unfortunately, dictionaries are not fully supported in Sacredboard 0.3.1, which are only displayed
+    # as 'object Object'.
     # results = {
     #     'optimization_target': loss,
     #     'accuracy': accuracy,

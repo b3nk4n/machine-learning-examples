@@ -4,6 +4,7 @@
 # temporary or generated files
 out/
 tmp/
+logs/
 
 # PyCharm files
 .idea/

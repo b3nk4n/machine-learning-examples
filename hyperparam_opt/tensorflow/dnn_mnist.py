@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 
 from tensorflow.examples.tutorials.mnist import input_data
@@ -38,6 +39,7 @@ def model(hyperparams):
 
     # Define loss
     loss_op = tf.losses.sparse_softmax_cross_entropy(labels=targets_, logits=y)
+    tf.summary.scalar('loss', loss_op)
 
     # Define metric
     correct_prediction = tf.equal(tf.argmax(y, 1), targets_)
@@ -46,32 +48,47 @@ def model(hyperparams):
     return x, y, targets_, keep_prob_, accuracy_op, loss_op
 
 
-def train(mnist, hyperparams):
+def train(mnist, hyperparams, log_dir):
+    tf.reset_default_graph()
     tf.set_random_seed(0)
 
     # Create the model
+    global_step = tf.train.create_global_step()
     x, y, targets_, keep_prob_, accuracy_op, loss_op = model(hyperparams)
 
     # Define optimizer
-    train_op = tf.train.AdamOptimizer(hyperparams.lr).minimize(loss_op)
+    train_op = tf.train.AdamOptimizer(hyperparams.lr).minimize(loss_op, global_step)
 
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
-        # Train
 
+        # Summary
+        train_summary = tf.summary.FileWriter(os.path.join(log_dir, 'train'), sess.graph)
+        valid_summary = tf.summary.FileWriter(os.path.join(log_dir, 'valid'), sess.graph)
+        summary_op = tf.summary.merge_all()
+
+        # Train
         epochs = 0
         batches_per_epoch = mnist.train.num_examples // hyperparams.batch_size
         best_loss = 99999.0
         no_improvement_counter = 0
         while True:
             epochs += 1
-            for _ in range(batches_per_epoch):
+            for i in range(batches_per_epoch):
                 batch_xs, batch_ys = mnist.train.next_batch(hyperparams.batch_size)
                 sess.run(train_op, feed_dict={x: batch_xs, targets_: batch_ys, keep_prob_: hyperparams.keep_prob})
 
-            loss, accuracy = sess.run([loss_op, accuracy_op],
-                                      feed_dict={x: mnist.validation.images,
-                                                 targets_: mnist.validation.labels})
+                # summary
+                if i % 10 == 0:
+                    summary = sess.run(summary_op,
+                                       feed_dict={x: batch_xs, targets_: batch_ys, keep_prob_: hyperparams.keep_prob})
+                    train_summary.add_summary(summary, tf.train.global_step(sess, global_step))
+
+            loss, accuracy, summary = sess.run([loss_op, accuracy_op, summary_op],
+                                               feed_dict={x: mnist.validation.images,
+                                                          targets_: mnist.validation.labels})
+
+            valid_summary.add_summary(summary, tf.train.global_step(sess, global_step))
             print('Epoch {} > Loss: {}, Accuracy: {}'.format(epochs, loss, accuracy))
 
             # simple early stopping
@@ -100,7 +117,7 @@ def main(_):
     # Import data
     mnist = input_data.read_data_sets(FLAGS.data_dir)
 
-    accuracy = train(mnist, hyper)
+    accuracy = train(mnist, hyper, FLAGS.log_dir)
     print(accuracy)
 
 
@@ -108,6 +125,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, default='../../data/tmp/mnist',
                         help='Directory for storing input data')
+    parser.add_argument('--log_dir', type=str, default='./logs',
+                        help='Directory for storing logs')
     parser.add_argument('--lr', type=float, default=0.001,
                         help='The learning rate')
     parser.add_argument('--batch_size', type=int, default=100,

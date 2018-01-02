@@ -33,13 +33,17 @@ def search_space():
     keep_prob = UniformFloat(0.2, 1.0, default=0.5)
 
 
+@ex.capture
+def hyperparams(lr, batch_size, n_hidden, keep_prob):
+    return HyperParams(lr, batch_size, n_hidden, keep_prob)
+
+
 @ex.automain
 @LogFileWriter(ex)
-def main(lr, batch_size, n_hidden, keep_prob, data_dir, log_dir, _run):
+def main(data_dir, log_dir, _run):
     mnist = input_data.read_data_sets(data_dir)
 
-    hyper = HyperParams(lr, batch_size, n_hidden, keep_prob)
-    loss, accuracy, epochs = train(mnist, hyper, log_dir)
+    loss, accuracy, epochs = train(mnist, hyperparams(), log_dir)
 
     return accuracy
 

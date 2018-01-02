@@ -1,5 +1,7 @@
 import sys
 import argparse
+
+import numpy as np
 import tensorflow as tf
 
 from hyperparam_opt.tensorflow.dnn_mnist import HyperParams, train
@@ -30,7 +32,7 @@ def main(_):
     MNIST = input_data.read_data_sets(FLAGS.data_dir)
 
     space = {
-        'lr': hp.uniform('lr', 0.0001, 0.01),
+        'lr': hp.loguniform('lr', np.log(0.0001), np.log(0.01)),
         'batch_size': hp.quniform('batch_size', 8, 256, 2),
         'n_hidden': hp.quniform('n_hidden', 32, 256, 1),
         'keep_prob': hp.uniform('keep_prob', 0.2, 1.0),

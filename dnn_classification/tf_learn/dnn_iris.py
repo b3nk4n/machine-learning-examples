@@ -112,5 +112,6 @@ def main():
 
     print("Predictions: {}\n".format(predictions))
 
+
 if __name__ == "__main__":
     main()

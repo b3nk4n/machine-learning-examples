@@ -55,7 +55,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=32,
                         help='The batch size')
     parser.add_argument('--learning_rate', type=float, default=0.1,
-                        help='The intial learning rate')
+                        help='The initial learning rate')
     parser.add_argument('--train_steps', type=int, default=1000,
                         help='The number of training steps')
     FLAGS, unparsed = parser.parse_known_args()

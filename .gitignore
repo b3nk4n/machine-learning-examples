@@ -9,4 +9,6 @@ logs/
 # PyCharm files
 .idea/
 
-
+# virual env
+venv/
+env/

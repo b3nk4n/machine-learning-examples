@@ -8,7 +8,6 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 import unsupervised_learning.tensorflow.utils as utils
-st = tf.contrib.bayesflow.stochastic_tensor
 
 
 class DenseLayer(object):
@@ -22,6 +21,12 @@ class DenseLayer(object):
 
 
 class VariationalAutoencoder(object):
+    """
+    Simple variational autoencoder implementation.
+
+    This implementations is based on:
+    https://deeplearningcourses.com/c/deep-learning-gans-and-variational-autoencoders
+    """
     SMOOTHING_EPSILON = 1e-6  # to not get a number too close to zero, which would cause a singularity
 
     def __init__(self, num_input, num_hiddens):
@@ -31,7 +36,7 @@ class VariationalAutoencoder(object):
         self.encoder_layers = []
         current_input_size = num_input
         for current_output_size in num_hiddens[:1]:
-            layer = DenseLayer(current_input_size, current_input_size,
+            layer = DenseLayer(current_input_size, current_output_size,
                                activation=tf.nn.relu)
             self.encoder_layers.append(layer)
             current_input_size = current_output_size
@@ -48,9 +53,27 @@ class VariationalAutoencoder(object):
         # use softplus to ensure std-dev is not negative
         self.stddev = tf.nn.softplus(current_layer_value[:, num_z:]) + self.SMOOTHING_EPSILON
 
-        with st.value_type(st.SampleValue()):
-            # this returns q(Z), the distribution of the latent variable Z
-            self.Z = st.StochasticTensor(tf.distributions.Normal(loc=self.means, scale=self.stddev))
+        # @deprecated since TF r1.5
+        # with st.value_type(st.SampleValue()):
+        #     # this returns q(Z), the distribution of the latent variable Z
+        #     self.Z = st.StochasticTensor(tf.distributions.Normal(loc=self.means, scale=self.stddev))
+
+        self.Z = tf.distributions.Normal(loc=self.means, scale=self.stddev).sample()
+
+        # alternative A: to the previous, but using the "reparameterization trick"
+        #standard_normal = tf.distributions.Normal(
+        #    loc=np.zeros(num_z, dtype=np.float32),
+        #    scale=np.ones(num_z, dtype=np.float32)
+        #)
+        #e = standard_normal.sample(tf.shape(self.means)[0])
+        #self.Z = e * self.stddev + self.means
+
+        # alternative B:
+        #eps = tf.random_normal((tf.shape(self.X)[0], num_z), 0, 1,
+        #                       dtype=tf.float32)
+        # z = sigma*epsilon + mu
+        # self.Z = tf.sqrt(tf.exp(self.stddev)) * eps + self.means
+
 
         # decoder
         self.decoder_layers = []
@@ -102,16 +125,22 @@ class VariationalAutoencoder(object):
         self.prior_predictive_from_input_probs = tf.nn.sigmoid(logits)
 
         # cost function
-        kl = tf.reduce_sum(tf.distributions.kl_divergence(self.Z.distribution, standard_normal), axis=1)
-        expected_log_likelihood = tf.reduce_sum(self.X_hat_distribution.log_prob(self.X), axis=1)
-        # equals:
-        # expected_log_likelihood = tf.reduce_sum(-tf.nn.sigmoid_cross_entropy_with_logits(
-        #     labels=self.X,
-        #     logits=posterior_predictive_logits
-        # ), axis=1)
-        self.elbo = tf.reduce_sum(expected_log_likelihood - kl)
+        kl = -tf.log(self.stddev) + 0.5 * (self.stddev ** 2 + self.means ** 2) - 0.5
+        kl = tf.reduce_sum(kl, axis=1)
+        # equals (before TF r1.5):
+        # kl = tf.reduce_sum(tf.distributions.kl_divergence(self.Z, standard_normal), axis=1)
 
-        self.train_op = tf.train.RMSPropOptimizer(learning_rate=1e-3).minimize(self.elbo)
+        expected_log_likelihood = tf.reduce_sum(-tf.nn.sigmoid_cross_entropy_with_logits(
+            labels=self.X,
+            logits=posterior_predictive_logits
+        ), axis=1)
+        # equals:
+        # expected_log_likelihood = tf.reduce_sum(self.X_hat_distribution.log_prob(self.X), axis=1)
+
+        elbo = tf.reduce_mean(expected_log_likelihood - kl)
+        self.cost = -elbo
+
+        self.train_op = tf.train.AdamOptimizer(learning_rate=1e-3).minimize(self.cost)
 
         # setup session
         self.sess = tf.InteractiveSession()
@@ -126,10 +155,9 @@ class VariationalAutoencoder(object):
             np.random.shuffle(X)
             for b in range(n_batches):
                 batch = X[b*batch_size:(b+1)*batch_size]
-                _, cost = self.sess.run([self.train_op, self.elbo], feed_dict={
+                _, cost = self.sess.run([self.train_op, self.cost], feed_dict={
                     self.X: batch
                 })
-                cost /= batch_size  # FIXME use tf.reduce_mean?
                 costs.append(cost)
                 if b % 100 == 0:
                     print('@{:4d} > cost: {:.3f}'.format(b, cost))
@@ -166,13 +194,14 @@ def main(_):
     Xtrain = (Xtrain > 0.5).astype(np.float32)
 
     vae = VariationalAutoencoder(28*28, [200, 100])
-    vae.fit(Xtrain)
+    vae.fit(Xtrain, epochs=FLAGS.epochs, batch_size=FLAGS.batch_size)
 
     # plot reconstruction
     done = False
     while not done:
         i = np.random.choice(len(Xtrain))
         x = Xtrain[i]
+        print(x.shape)
         im = vae.posterior_predictive_sample([x]).reshape(28, 28)
         plt.subplot(1, 2, 1)
         plt.imshow(x.reshape(28, 28), cmap='gray')
@@ -209,5 +238,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, default='../../data/tmp/mnist',
                         help='Directory for storing input data')
+    parser.add_argument('--batch_size', type=int, default=64,
+                        help='The batch size while training')
+    parser.add_argument('--epochs', type=int, default=25,
+                        help='The number of training epochs')
     FLAGS, unparsed = parser.parse_known_args()
     main([sys.argv[0]] + unparsed)

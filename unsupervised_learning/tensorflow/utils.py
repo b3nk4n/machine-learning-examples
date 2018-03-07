@@ -14,3 +14,8 @@ def show_reconstruction(x, y):
     plt.imshow(y.reshape(28, 28), cmap='gray')
     plt.title('Reconstructed')
     plt.show()
+
+
+def ask_user(question):
+    ans = input(question)
+    return ans and ans[0] is ('n' or 'N')

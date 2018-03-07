@@ -9,7 +9,7 @@ import unsupervised_learning.tensorflow.models as models
 import unsupervised_learning.tensorflow.utils as utils
 
 
-def show_random_predictions(model, Xtest):
+def show_random_predictions(model, Xtest, loop=False):
     done = False
     while not done:
         # Generate examples
@@ -18,9 +18,9 @@ def show_random_predictions(model, Xtest):
         y = model.predict([x])
         utils.show_reconstruction(x, y)
 
-        ans = input("Generate another?")
-        if ans and ans[0] in ('n' or 'N'):
-            done = True
+        if not loop:
+            break
+        done = utils.ask_user('Generate another?')
 
 
 def main(_):
@@ -36,7 +36,7 @@ def main(_):
         session.run(tf.global_variables_initializer())
         model.set_session(session)
         model.fit(Xtrain, epochs=FLAGS.epochs, batch_size=FLAGS.batch_size, show_fig=FLAGS.show_fig)
-        show_random_predictions(model, Xtest)
+        show_random_predictions(model, Xtest, loop=True)
 
 
 if __name__ == '__main__':

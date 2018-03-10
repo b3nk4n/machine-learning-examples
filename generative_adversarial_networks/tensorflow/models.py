@@ -383,6 +383,6 @@ class DCGAN(object):
     def sample(self, n):
         Z = np.random.uniform(-1, 1, size=[n, self.latent_dims])
         samples = self.sess.run(self.samples_images_test, {
-            self.Z: Z, self.batch_size: n
+            self.Z: Z
         })
         return samples

@@ -10,19 +10,12 @@ import unsupervised_learning.tensorflow.models as models
 import unsupervised_learning.tensorflow.utils as utils
 
 
-def main(_):
+def get_mnist():
     mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=False)
     Xtrain, Ytrain = mnist.train.images, mnist.train.labels
-
     # convert X to binary variable
     Xtrain = (Xtrain > 0.5).astype(np.float32)
-
-    model = models.VariationalAutoencoder(28*28, [200, 100, 2])
-    model.fit(Xtrain, epochs=FLAGS.epochs, batch_size=FLAGS.batch_size)
-
-    show_reconstruction(Xtrain, model, loop=True)
-    show_sampled_from_latent_space(model, loop=True)
-    visualize_latent_space(model)
+    return Xtrain, Ytrain
 
 
 def show_reconstruction(X, model, loop=False):
@@ -86,6 +79,17 @@ def visualize_latent_space(model):
             image[(n - i - 1) * 28:(n - i) * 28, j * 28:(j + 1) * 28] = x_recon
     plt.imshow(image, cmap='gray')
     plt.show()
+
+
+def main(_):
+    Xtrain, _ = get_mnist()
+
+    model = models.VariationalAutoencoder(28*28, [200, 100, 2])
+    model.fit(Xtrain, epochs=FLAGS.epochs, batch_size=FLAGS.batch_size)
+
+    show_reconstruction(Xtrain, model, loop=True)
+    show_sampled_from_latent_space(model, loop=True)
+    visualize_latent_space(model)
 
 
 if __name__ == '__main__':

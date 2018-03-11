@@ -9,6 +9,15 @@ import unsupervised_learning.tensorflow.models as models
 import unsupervised_learning.tensorflow.utils as utils
 
 
+def get_mnist():
+    mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=False)
+    Xtrain, Ytrain = mnist.train.images, mnist.train.labels
+    Xtest, Ytest = mnist.test.images, mnist.test.labels
+    Xtrain = Xtrain.astype(np.float32)
+    Xtest = Xtest.astype(np.float32)
+    return Xtest, Xtrain
+
+
 def show_random_predictions(model, Xtest, loop=False):
     done = False
     while not done:
@@ -24,11 +33,7 @@ def show_random_predictions(model, Xtest, loop=False):
 
 
 def main(_):
-    mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=False)
-    Xtrain, Ytrain = mnist.train.images, mnist.train.labels
-    Xtest, Ytest = mnist.test.images, mnist.test.labels
-    Xtrain = Xtrain.astype(np.float32)
-    Xtest = Xtest.astype(np.float32)
+    Xtest, Xtrain = get_mnist()
 
     input_size = Xtrain.shape[-1]
     model = models.AutoEncoder(input_size, 256, learning_rate=FLAGS.lr, id=0)

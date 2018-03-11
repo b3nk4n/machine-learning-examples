@@ -8,12 +8,17 @@ from tensorflow.examples.tutorials.mnist import input_data
 import unsupervised_learning.tensorflow.models as models
 
 
-def main(_):
+def get_mnist():
     mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=False)
     Xtrain, Ytrain = mnist.train.images, mnist.train.labels
     Xtest, Ytest = mnist.test.images, mnist.test.labels
     Xtrain = Xtrain.astype(np.float32)
     Xtest = Xtest.astype(np.float32)
+    return Xtest, Xtrain, Ytest, Ytrain
+
+
+def main(_):
+    Xtest, Xtrain, Ytest, Ytrain = get_mnist()
 
     input_size = Xtrain.shape[-1]
     num_classes = Ytrain.shape[-1]

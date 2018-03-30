@@ -46,14 +46,15 @@ def main(_):
 
     model = models.DCGAN(dim, colors, d_sizes, g_sizes, FLAGS.lr, FLAGS.beta1)
     model.fit(X, epochs=FLAGS.epochs, batch_size=FLAGS.batch_size,
-              save_sample_interval=FLAGS.save_sample_interval)
+              save_sample_interval=FLAGS.save_sample_interval,
+              output_root=OUTPUT_ROOT)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=64,
                         help='The batch size while training')
-    parser.add_argument('--epochs', type=int, default=5,
+    parser.add_argument('--epochs', type=int, default=3,
                         help='The number of training epochs')
     parser.add_argument('--lr', type=float, default=2e-4,
                         help='The learning rate')

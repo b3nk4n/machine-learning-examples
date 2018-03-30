@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -301,7 +302,7 @@ class DCGAN(object):
         logits = self.d_final_layer.forward(output, reuse, is_training)
         return logits
 
-    def fit(self, X, epochs, batch_size, save_sample_interval=100):
+    def fit(self, X, epochs, batch_size, save_sample_interval=100, output_root='tmp'):
         d_costs = []
         g_costs = []
 
@@ -336,20 +337,20 @@ class DCGAN(object):
                 })
                 g_costs.append((g_cost1 + g_cost2) / 2)
 
-                print('Batch {}/{}: dt: {}, d_acc: {:.2f}'.format( j +1, n_batches, datetime.now() - t0, d_acc))
+                print('Batch {}/{}: dt: {}, d_acc: {:.2f}'.format(j + 1, n_batches, datetime.now() - t0, d_acc))
 
                 step += 1
                 if step % save_sample_interval == 0:
                     print('Saving a sample...')
                     n_samples = 64
                     samples = self.sample(n_samples)
-                    self._save_samples_image('tmp/samples_{:05d}.png'.format(step), samples)
+                    self._save_samples_image(os.path.join(output_root, 'samples_{:05d}.png'.format(step)), samples)
 
         plt.clf()
         plt.plot(d_costs, label='Discriminator Cost')
         plt.plot(g_costs, label='Generator Cost')
         plt.legend()
-        plt.savefig('tmp/training_costs.png')
+        plt.savefig(os.path.join(output_root, 'training_costs.png'))
 
     def _save_samples_image(self, filepath, samples):
         n_samples = samples.shape[0]

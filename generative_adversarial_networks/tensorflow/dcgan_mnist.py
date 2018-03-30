@@ -8,9 +8,12 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 import generative_adversarial_networks.tensorflow.models as models
 
+DATA_ROOT = '../../data/tmp/mnist'
+OUTPUT_ROOT = 'tmp/mnist'
+
 
 def get_mnist():
-    mnist = input_data.read_data_sets('../../data/tmp/mnist', one_hot=False)
+    mnist = input_data.read_data_sets(DATA_ROOT, one_hot=False)
     Xtrain, Ytrain = mnist.train.images, mnist.train.labels
     Xtrain = Xtrain.astype(np.float32)
     return Xtrain, Ytrain
@@ -18,8 +21,8 @@ def get_mnist():
 
 def main(_):
     # make dir to save samples
-    if not os.path.exists('tmp'):
-        os.mkdir('tmp')
+    if not os.path.exists(OUTPUT_ROOT):
+        os.makedirs(OUTPUT_ROOT)
 
     X, Y = get_mnist()
     X = X.reshape(len(X), 28, 28, 1)

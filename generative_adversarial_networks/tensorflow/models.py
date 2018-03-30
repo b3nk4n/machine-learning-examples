@@ -145,7 +145,7 @@ class DCGAN(object):
 
         with tf.variable_scope('discriminator') as scope:
             scope.reuse_variables()
-            sample_logits = self.discriminator_forward(self.sample_images, True)
+            sample_logits = self.discriminator_forward(self.sample_images, reuse=True)
 
         with tf.variable_scope('generator') as scope:
             scope.reuse_variables()
@@ -286,8 +286,7 @@ class DCGAN(object):
 
             # final logistic layer
             name = 'dense_layer_{}'.format(count)
-            self.d_final_layer = DenseLayer(name, num_in, 1, False,
-                                            activation=tf.nn.relu)
+            self.d_final_layer = DenseLayer(name, num_in, 1, False)
 
             logits = self.discriminator_forward(X)
             return logits

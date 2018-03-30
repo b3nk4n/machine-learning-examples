@@ -10,5 +10,5 @@ logs/
 .idea/
 
 # virual env
-venv/
-env/
+[v]env/
+[v]env-gpu/

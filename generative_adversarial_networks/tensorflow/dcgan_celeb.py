@@ -11,6 +11,7 @@ import generative_adversarial_networks.tensorflow.models as models
 import generative_adversarial_networks.tensorflow.utils as utils
 
 DATA_ROOT = '../../data/tmp/celeb'
+OUTPUT_ROOT = 'tmp/celeb'
 
 
 def get_celeb_filenames():
@@ -56,8 +57,8 @@ def get_celeb_filenames():
 
 def main(_):
     # make dir to save samples
-    if not os.path.exists('tmp'):
-        os.mkdir('tmp')
+    if not os.path.exists(OUTPUT_ROOT):
+        os.makedirs(OUTPUT_ROOT)
 
     X = get_celeb_filenames()
     dim = 64

@@ -66,6 +66,38 @@ def main(_):
     print('Test result:')
     print('Loss: {} Accuracy: {}'.format(scores[0], scores[1]))
 
+    if FLAGS.fine_tuning_epochs > 0:
+        # make block5 trainable for fine-tuning
+        for layer in model.layers[0].layers:
+            if layer.name.startswith('block5_conv'):
+                layer.trainable = True
+        model.summary()
+
+        model.compile(optimizer=optimizers.Adam(FLAGS.learning_rate / 2),
+                      loss='binary_crossentropy',
+                      metrics=['acc'])
+
+        res = model.fit_generator(
+            train_datagen,
+            steps_per_epoch=num_train // FLAGS.batch_size,
+            epochs=FLAGS.fine_tuning_epochs,
+            validation_data=valid_datagen,
+            validation_steps=num_valid // FLAGS.batch_size)
+
+        model.save('cats_and_dogs_vgg16_finetuned_{}.h5'.format(num_train))
+
+        utils.show_accuracy(res.history['acc'],
+                            res.history['val_acc'])
+        utils.show_loss(res.history['loss'],
+                        res.history['val_loss'])
+
+        scores = model.evaluate_generator(
+            test_datagen,
+            steps=num_test // FLAGS.batch_size)
+
+        print('Test result after fine-tuning:')
+        print('Loss: {} Accuracy: {}'.format(scores[0], scores[1]))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -73,11 +105,13 @@ if __name__ == '__main__':
                         help='The batch size')
     parser.add_argument('--learning_rate', type=float, default=1e-5,
                         help='The initial learning rate')
-    parser.add_argument('--epochs', type=int, default=30,
+    parser.add_argument('--epochs', type=int, default=1,
                         help='The number of training epochs')
     parser.add_argument('--dropout', type=float, default=0.5,
                         help='The dropout used after the conv-stack')
     parser.add_argument('--augmentation', type=bool, default=True,
                         help='Whether to use data augmentation')
+    parser.add_argument('--fine_tuning_epochs', type=int, default=2,
+                        help='Do fine-tuning of block5 in case non-zero.')
     FLAGS, unparsed = parser.parse_known_args()
     main([sys.argv[0]] + unparsed)

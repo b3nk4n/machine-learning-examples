@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+from tensorflow.contrib.keras import applications
 from tensorflow.contrib.keras import layers
 from tensorflow.contrib.keras import models
 from tensorflow.contrib.keras import optimizers
@@ -11,17 +12,14 @@ import cnn_classification.keras.utils as utils
 
 def create_model(dropout_rate):
     model = models.Sequential()
-    model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(150, 150, 3)))
-    model.add(layers.MaxPool2D((2, 2)))
-    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-    model.add(layers.MaxPool2D((2, 2)))
-    model.add(layers.Conv2D(128, (3, 3), activation='relu'))
-    model.add(layers.MaxPool2D((2, 2)))
-    model.add(layers.Conv2D(128, (3, 3), activation='relu'))
-    model.add(layers.MaxPool2D((2, 2)))
+    conv_base = applications.VGG16(include_top=False,
+                                   input_shape=(150, 150, 3),
+                                   weights='imagenet')
+    conv_base.trainable = False
+    model.add(conv_base)
     model.add(layers.Flatten())
     model.add(layers.Dropout(dropout_rate))
-    model.add(layers.Dense(512, activation='relu'))
+    model.add(layers.Dense(256, activation='relu'))
     model.add(layers.Dense(1, activation='sigmoid'))
     return model
 
@@ -54,7 +52,7 @@ def main(_):
         validation_data=valid_datagen,
         validation_steps=num_valid // FLAGS.batch_size)
 
-    model.save('cats_and_dogs_{}.h5'.format(num_train))
+    model.save('cats_and_dogs_vgg16_{}.h5'.format(num_train))
 
     utils.show_accuracy(res.history['acc'],
                         res.history['val_acc'])
@@ -73,7 +71,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=20,
                         help='The batch size')
-    parser.add_argument('--learning_rate', type=float, default=1e-4,
+    parser.add_argument('--learning_rate', type=float, default=1e-5,
                         help='The initial learning rate')
     parser.add_argument('--epochs', type=int, default=30,
                         help='The number of training epochs')

@@ -12,3 +12,6 @@ logs/
 # virual env
 [v]env/
 [v]env-gpu/
+
+# stored models
+*.h5

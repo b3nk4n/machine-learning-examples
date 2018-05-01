@@ -2,12 +2,12 @@ import argparse
 import sys
 
 from tensorflow.contrib.keras import datasets
-from tensorflow.contrib.keras import preprocessing
 from tensorflow.contrib.keras import layers
 from tensorflow.contrib.keras import models
 from tensorflow.contrib.keras import optimizers
+from tensorflow.contrib.keras import preprocessing
 
-import matplotlib.pyplot as plt
+from utils.keras import plots
 
 
 def create_model(max_features, n_hidden):
@@ -16,28 +16,6 @@ def create_model(max_features, n_hidden):
     model.add(layers.LSTM(n_hidden))
     model.add(layers.Dense(1, activation='sigmoid'))
     return model
-
-
-def show_accuracy(acc, val_acc):
-    epochs = range(1, len(acc) + 1)
-
-    plt.plot(epochs, acc, 'bo', label='Training acc')
-    plt.plot(epochs, val_acc, 'b', label='Validation acc')
-    plt.title('Accuracy')
-    plt.legend()
-
-    plt.show()
-
-
-def show_loss(loss, val_loss):
-    epochs = range(1, len(loss) + 1)
-
-    plt.plot(epochs, loss, 'bo', label='Training loss')
-    plt.plot(epochs, val_loss, 'b', label='Validation loss')
-    plt.title('Loss')
-    plt.legend()
-
-    plt.show()
 
 
 def main(_):
@@ -58,10 +36,10 @@ def main(_):
                        batch_size=FLAGS.batch_size,
                        validation_split=0.2)
 
-    show_loss(result.history['loss'],
-              result.history['val_loss'])
-    show_accuracy(result.history['acc'],
-                  result.history['val_acc'])
+    plots.show_loss(result.history['loss'],
+                    result.history['val_loss'])
+    plots.show_accuracy(result.history['acc'],
+                        result.history['val_acc'])
 
 
 if __name__ == '__main__':

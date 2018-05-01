@@ -7,6 +7,7 @@ from tensorflow.contrib.keras import optimizers
 
 import cnn_classification.keras.dogs_cats_dataset as dataset
 import cnn_classification.keras.utils as utils
+from utils.keras import plots
 
 
 def create_model(dropout_rate):
@@ -56,9 +57,9 @@ def main(_):
 
     model.save('cats_and_dogs_{}.h5'.format(num_train))
 
-    utils.show_accuracy(res.history['acc'],
+    plots.show_accuracy(res.history['acc'],
                         res.history['val_acc'])
-    utils.show_loss(res.history['loss'],
+    plots.show_loss(res.history['loss'],
                     res.history['val_loss'])
 
     scores = model.evaluate_generator(

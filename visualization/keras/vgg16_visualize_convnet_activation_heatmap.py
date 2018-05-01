@@ -45,21 +45,26 @@ def superimpose_image_with_heatmap(dest_img_path, src_img_path, heatmap, strengt
 
 def gradCAM(model, dog_x, class_idx):
     model_class_output = model.output[:, class_idx]
+    print('model_class_output shape', model_class_output.shape)
     last_conv_layer = model.get_layer('block5_conv3')
 
     grads_list = K.gradients(model_class_output, last_conv_layer.output)
     grads = grads_list[0]
+    # grads shape: (?, 14, 14, 512)
 
     pooled_grads = K.mean(grads, axis=(0, 1, 2))
+    # pooled_grads shape: (512,)
 
     iterate = K.function(inputs=[model.input],
                          outputs=[pooled_grads, last_conv_layer.output[0]])
     pooled_grads_value, conv_layer_output_value = iterate([dog_x])
+    # conv_layer_output_value shape: (14, 14, 512)
 
     for i in range(last_conv_layer.filters):
         conv_layer_output_value[:, :, i] *= pooled_grads_value[i]
 
     heatmap = np.mean(conv_layer_output_value, axis=-1)
+    # heatmap shape: (14, 14)
     heatmap = normalize_heatmap(heatmap)
     return heatmap
 

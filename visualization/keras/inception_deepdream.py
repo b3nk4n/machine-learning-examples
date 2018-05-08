@@ -26,8 +26,8 @@ def resize_img(img, shape):
 def save_img(img, filename):
     img = np.copy(img)
     pil_img = deprocess_img(img)
-    os.makedirs('output', exist_ok=True)
-    out_path = os.path.join('output', filename)
+    os.makedirs('out', exist_ok=True)
+    out_path = os.path.join('out', filename)
     scipy.misc.imsave(out_path, pil_img)
 
 

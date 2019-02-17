@@ -6,6 +6,7 @@ assets/
 out/
 tmp/
 logs/
+checkpoints/
 
 # PyCharm files
 .idea/

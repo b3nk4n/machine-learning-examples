@@ -49,16 +49,19 @@ def create_pairs(x, digit_indices):
     """
     pairs = []
     labels = []
-    n = min([len(digit_indices[d]) for d in range(NUM_CLASSES)]) - 1
+    n = min([len(digit_indices[d]) for d in range(NUM_CLASSES)])
     for d in range(NUM_CLASSES):
-        for i in range(n):
-            z1, z2 = digit_indices[d][i], digit_indices[d][i + 1]
-            pairs += [[x[z1], x[z2]]]
-            inc = np.random.randint(1, NUM_CLASSES)
-            dn = (d + inc) % NUM_CLASSES
-            z1, z2 = digit_indices[d][i], digit_indices[dn][i]
-            pairs += [[x[z1], x[z2]]]
-            labels += [1, 0]
+        for i in range(n - 1):
+            for j in range(i + 1, n):
+                z1, z2 = digit_indices[d][i], digit_indices[d][j]
+                pairs += [[x[z1], x[z2]]]
+
+                rand_inc = np.random.randint(1, NUM_CLASSES)
+                rand_idx = np.random.randint(0, len(digit_indices[d]))
+                dn = (d + rand_inc) % NUM_CLASSES
+                z1, z2 = digit_indices[d][i], digit_indices[dn][rand_idx]
+                pairs += [[x[z1], x[z2]]]
+                labels += [1, 0]
     return np.array(pairs), np.array(labels)
 
 
@@ -157,7 +160,6 @@ def plot_examples(image_pairs, labels, predictions):
     for i in range(0, num):
         img0 = image_pairs[i, 0][:, :, 0]
         img1 = image_pairs[i, 1][:, :, 0]
-        label = labels[i]
         distance = predictions[i, 0]
         fig.add_subplot(num, 2, (2*i + 1))
         plt.imshow(img0)
@@ -217,6 +219,13 @@ def main(args):
     if args.early_stopping:
         callbacks.append(tf.keras.callbacks.EarlyStopping(patience=20, monitor='val_accuracy'))
     callbacks.append(tf.keras.callbacks.ReduceLROnPlateau(monitor='val_accuracy', factor=0.5, patience=10, verbose=1))
+    callbacks.append(tf.keras.callbacks.ModelCheckpoint(
+        filepath='checkpoints/ckp',
+        monitor='val_accuracy',
+        verbose=1,
+        save_best_only=True,
+        save_weights_only=True,
+        period=1))
 
     if args.min_epochs:
         print('Pre-training...')
@@ -239,6 +248,10 @@ def main(args):
 
     plot_values(history.history['loss'], history.history['val_loss'], 'Loss')
     plot_values(history.history['accuracy'], history.history['val_accuracy'], 'Accuracy')
+
+    # load the best model from checkpoint
+    latest = tf.train.latest_checkpoint('checkpoints')
+    model.load_weights(latest)
 
     # compute final accuracy on training and test sets
     y_pred = model.predict([tr_pairs[:, 0], tr_pairs[:, 1]])
@@ -341,13 +354,13 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--min_epochs', type=int, default=50,
-                        help='The minimum number of (pre-)training epochs')
+    parser.add_argument('--min_epochs', type=int, default=0,
+                        help='The minimum number of (pre-)training epochs, before early-stopping kicks in')
     parser.add_argument('--max_epochs', type=int, default=500,
                         help='The maximum number of training epochs')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='The batch size while training')
-    parser.add_argument('--examples_per_class', type=int, default=10, # TODO create a similar MNIST example where we limit the examples_per_class as a param, to see how a standard classification model performs when the dataset is small
+    parser.add_argument('--examples_per_class', type=int, default=25,  # TODO create a similar MNIST example where we limit the examples_per_class as a param, to see how a standard classification model performs when the dataset is small
                         help='Maximum number of examples per class')
     parser.add_argument('--base_network', type=str, default='cnn',
                         help='The base network model (nn, cnn) used in the siamese')

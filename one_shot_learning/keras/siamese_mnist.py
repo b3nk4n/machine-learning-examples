@@ -212,7 +212,7 @@ def main(args):
     model.summary()
 
     # train
-    rms = tf.keras.optimizers.RMSprop()
+    rms = tf.keras.optimizers.RMSprop()  # performed much better than Adam
     model.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
 
     callbacks = []
@@ -353,14 +353,14 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()  # TODO augmentation param
     parser.add_argument('--min_epochs', type=int, default=0,
                         help='The minimum number of (pre-)training epochs, before early-stopping kicks in')
     parser.add_argument('--max_epochs', type=int, default=500,
                         help='The maximum number of training epochs')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='The batch size while training')
-    parser.add_argument('--examples_per_class', type=int, default=25,  # TODO create a similar MNIST example where we limit the examples_per_class as a param, to see how a standard classification model performs when the dataset is small
+    parser.add_argument('--examples_per_class', type=int, default=10,
                         help='Maximum number of examples per class')
     parser.add_argument('--base_network', type=str, default='cnn',
                         help='The base network model (nn, cnn) used in the siamese')

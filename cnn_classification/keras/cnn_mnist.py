@@ -48,15 +48,15 @@ def main(args):
 def create_nn_model():
     model = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-7)),
+        tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-6)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.Activation('relu'),
         tf.keras.layers.Dropout(0.225),
-        tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-7)),
+        tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-6)),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.Activation('relu'),
         tf.keras.layers.Dropout(0.225),
-        tf.keras.layers.Dense(NUM_CLASSES, activation=tf.nn.softmax, kernel_regularizer=tf.keras.regularizers.l2(5e-7))
+        tf.keras.layers.Dense(NUM_CLASSES, activation=tf.nn.softmax, kernel_regularizer=tf.keras.regularizers.l2(5e-6))
     ])
     return model
 
@@ -90,7 +90,7 @@ if __name__ == '__main__':
                         help='The number of training epochs')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='The batch size while training')
-    parser.add_argument('--examples_per_class', type=int, default=10,
+    parser.add_argument('--examples_per_class', type=int, default=25,
                         help='Maximum number of examples per class')
     parser.add_argument('--model', type=str, default='cnn',
                         help='The network model (nn, cnn) used')

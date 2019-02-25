@@ -16,21 +16,23 @@ import argparse
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
-DISTANCE_THRESHOLD = 0.52
+DISTANCE_THRESHOLD = 0.50
 NUM_CLASSES = 10
 SEED = 42
 
 
-def euclidean_distance(vects):
+def euclidean_distance_scalar(vects):
     x, y = vects
     sum_square = tf.keras.backend.sum(tf.square(x - y), axis=1, keepdims=True)
     return tf.keras.backend.sqrt(tf.keras.backend.maximum(sum_square, tf.keras.backend.epsilon()))
 
 
-def eucl_dist_output_shape(shapes):
-    shape1, shape2 = shapes
-    return shape1[0], 1
+def l1_distance_vector(vects):
+    x, y = vects
+    l1 = tf.abs(x - y)
+    return tf.keras.backend.maximum(l1, tf.keras.backend.epsilon())
 
 
 def contrastive_loss(y_true, y_pred):
@@ -70,15 +72,15 @@ def create_base_nn_network(input_shape):
     """
     inputs = tf.keras.layers.Input(shape=input_shape)
     x = tf.keras.layers.Flatten()(inputs)
-    x = tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-7))(x)
+    x = tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-6))(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation('relu')(x)
     x = tf.keras.layers.Dropout(0.225)(x)
-    x = tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-7))(x)
+    x = tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-6))(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation('relu')(x)
     x = tf.keras.layers.Dropout(0.225)(x)
-    x = tf.keras.layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(5e-7))(x)
+    x = tf.keras.layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(5e-6))(x)
     return tf.keras.models.Model(inputs, x)
 
 
@@ -107,6 +109,62 @@ def create_base_cnn_network(input_shape):
     return tf.keras.models.Model(inputs, x)
 
 
+def create_simple_siamese_model(base_network_model, input_shape):
+    if base_network_model == 'nn':
+        base_network = create_base_nn_network(input_shape)
+    elif base_network_model == 'cnn':
+        base_network = create_base_cnn_network(input_shape)
+    else:
+        raise Exception('Unknown base network model type.')
+
+    input_a = tf.keras.layers.Input(shape=input_shape)
+    input_b = tf.keras.layers.Input(shape=input_shape)
+    # because we re-use the same instance `base_network`,
+    # the weights of the network
+    # will be shared across the two branches
+    processed_a = base_network(input_a)
+    processed_b = base_network(input_b)
+    distance = tf.keras.layers.Lambda(euclidean_distance_scalar)([processed_a, processed_b])
+    model = tf.keras.models.Model([input_a, input_b], distance)
+
+    opt = tf.keras.optimizers.RMSprop()  # performed much better than Adam
+    model.compile(loss=contrastive_loss, optimizer=opt, metrics=[acc])
+
+    return model
+
+
+def create_dense_siamese_model(base_network_model, input_shape):
+    if base_network_model == 'nn':
+        base_network = create_base_nn_network(input_shape)
+    elif base_network_model == 'cnn':
+        base_network = create_base_cnn_network(input_shape)
+    else:
+        raise Exception('Unknown base network model type.')
+
+    input_a = tf.keras.layers.Input(shape=input_shape)
+    input_b = tf.keras.layers.Input(shape=input_shape)
+
+    processed_a = base_network(input_a)
+    processed_b = base_network(input_b)
+
+    # output_shape=lambda x: x[0]
+    embedding = tf.keras.layers.Lambda(l1_distance_vector)([processed_a, processed_b])
+    embedding = tf.keras.layers.BatchNormalization()(embedding)
+    x = tf.keras.layers.Dropout(0.5)(embedding)
+    x = tf.keras.layers.Dense(512, kernel_regularizer=tf.keras.regularizers.l2(5e-4))(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Dropout(0.5)(x)
+    prediction = tf.keras.layers.Dense(1, kernel_regularizer=tf.keras.regularizers.l2(5e-4),
+                                       activation='sigmoid')(x)
+    model = tf.keras.models.Model([input_a, input_b], prediction)
+
+    opt = tf.keras.optimizers.RMSprop()
+    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
+
+    return model
+
+
 def compute_accuracy(y_true, y_pred):
     """Compute classification accuracy with a fixed threshold on distances.
     """
@@ -114,7 +172,7 @@ def compute_accuracy(y_true, y_pred):
     return np.mean(pred == y_true)
 
 
-def accuracy(y_true, y_pred):
+def acc(y_true, y_pred):
     """Compute classification accuracy with a fixed threshold on distances.
     """
     return tf.keras.backend.mean(tf.equal(y_true, tf.cast(y_pred < DISTANCE_THRESHOLD, y_true.dtype)))
@@ -154,16 +212,16 @@ def plot_examples_separated(image_pairs, labels, predictions):
     plt.show()
 
 
-def plot_examples(image_pairs, labels, predictions):
+def plot_examples(image_pairs, predictions):
     num = image_pairs.shape[0]
     fig = plt.figure(1)
     for i in range(0, num):
         img0 = image_pairs[i, 0][:, :, 0]
         img1 = image_pairs[i, 1][:, :, 0]
         distance = predictions[i, 0]
-        fig.add_subplot(num, 2, (2*i + 1))
+        fig.add_subplot(num, 2, (2 * i + 1))
         plt.imshow(img0)
-        fig.add_subplot(num, 2, (2*i + 2))
+        fig.add_subplot(num, 2, (2 * i + 2))
         plt.imshow(img1)
         plt.ylabel('{:.4f}'.format(distance))
     plt.show()
@@ -180,7 +238,6 @@ def main(args):
     x_test = np.expand_dims(x_test, axis=-1).astype('float32')
     x_train /= 255
     x_test /= 255
-    input_shape = x_train.shape[1:]
 
     # create training+test positive and negative pairs
     tr_digit_indices = get_digit_indices(y_train, args.examples_per_class)
@@ -190,38 +247,26 @@ def main(args):
     te_pairs, te_y = create_pairs(x_test, te_digit_indices)
 
     # network definition
-    if args.base_network == 'nn':
-        base_network = create_base_nn_network(input_shape)
+    input_shape = x_train.shape[1:]
+
+    if args.model == 'simple_head':
+        model = create_simple_siamese_model(args.base_network, input_shape)
+    elif args.model == 'dense_head':
+        model = create_dense_siamese_model(args.base_network, input_shape)
     else:
-        base_network = create_base_cnn_network(input_shape)
-
-    input_a = tf.keras.layers.Input(shape=input_shape)
-    input_b = tf.keras.layers.Input(shape=input_shape)
-
-    # because we re-use the same instance `base_network`,
-    # the weights of the network
-    # will be shared across the two branches
-    processed_a = base_network(input_a)
-    processed_b = base_network(input_b)
-
-    distance = tf.keras.layers.Lambda(euclidean_distance,
-                                      output_shape=eucl_dist_output_shape)([processed_a, processed_b])
-
-    model = tf.keras.models.Model([input_a, input_b], distance)
+        raise Exception('Unknown model type.')
 
     model.summary()
 
     # train
-    rms = tf.keras.optimizers.RMSprop()  # performed much better than Adam
-    model.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
 
     callbacks = []
     if args.early_stopping:
-        callbacks.append(tf.keras.callbacks.EarlyStopping(patience=20, monitor='val_accuracy'))
-    callbacks.append(tf.keras.callbacks.ReduceLROnPlateau(monitor='val_accuracy', factor=0.5, patience=10, verbose=1))
+        callbacks.append(tf.keras.callbacks.EarlyStopping(patience=20, monitor='val_acc'))
+    callbacks.append(tf.keras.callbacks.ReduceLROnPlateau(monitor='val_acc', factor=0.5, patience=10, verbose=1))
     callbacks.append(tf.keras.callbacks.ModelCheckpoint(
         filepath='checkpoints/ckp',
-        monitor='val_accuracy',
+        monitor='val_acc',
         verbose=1,
         save_best_only=True,
         save_weights_only=True,
@@ -247,42 +292,56 @@ def main(args):
                         validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y))
 
     plot_values(history.history['loss'], history.history['val_loss'], 'Loss')
-    plot_values(history.history['accuracy'], history.history['val_accuracy'], 'Accuracy')
+    plot_values(history.history['acc'], history.history['val_acc'], 'Accuracy')
 
     # load the best model from checkpoint
     latest = tf.train.latest_checkpoint('checkpoints')
     model.load_weights(latest)
 
     # compute final accuracy on training and test sets
-    y_pred = model.predict([tr_pairs[:, 0], tr_pairs[:, 1]])
-    tr_acc = compute_accuracy(tr_y, y_pred)
-    y_pred = model.predict([te_pairs[:, 0], te_pairs[:, 1]])
-    te_acc = compute_accuracy(te_y, y_pred)
+    tr_pred = model.predict([tr_pairs[:, 0], tr_pairs[:, 1]])
+    te_pred = model.predict([te_pairs[:, 0], te_pairs[:, 1]])
 
-    print('* Accuracy on training set: %0.2f%%' % (100 * tr_acc))
-    print('* Accuracy on test set: %0.2f%%' % (100 * te_acc))
+    if args.model == 'simple_head':
+        tr_acc = compute_accuracy(tr_y, tr_pred)
+        te_acc = compute_accuracy(te_y, te_pred)
+    else:
+        tr_scores = model.evaluate([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y, verbose=2)
+        tr_acc = tr_scores[1]
+        te_scores = model.evaluate([te_pairs[:, 0], te_pairs[:, 1]], te_y, verbose=2)
+        te_acc = te_scores[1]
+
+    print('>>> Accuracy on training set: {:.2f}%'.format(tr_acc * 100))
+    print('>>> Accuracy on test set:     {:.2f}%'.format(te_acc * 100))
 
     # plot first 20 examples
     image_pairs = te_pairs[:20, :]
     labels = te_y[:20]
-    predictions = y_pred[:20]
+    predictions = te_pred[:20]
 
     plot_examples_separated(image_pairs, labels, predictions)
 
     # plot first 10 FPs
+    if args.model == 'simple_head':
+        # minimum
+        assessment_criteria = lambda new, prev: new < prev
+    else:
+        # maximum
+        assessment_criteria = lambda new, prev: new > prev
+
     image_pairs = []
     labels = np.zeros(10)
     predictions = np.zeros((10, 1))
     index = 0
     while len(image_pairs) < 10:
-        if y_pred[index] < DISTANCE_THRESHOLD and te_y[index] == 0:
+        if assessment_criteria(te_pred[index], DISTANCE_THRESHOLD) and te_y[index] == 0:
             image_pairs += [[te_pairs[index, 0], te_pairs[index, 1]]]
             labels[len(image_pairs) - 1] = te_y[index]
-            predictions[len(image_pairs) - 1, 0] = y_pred[index, 0]
+            predictions[len(image_pairs) - 1, 0] = te_pred[index, 0]
         index += 1
     image_pairs = np.array(image_pairs)
 
-    plot_examples(image_pairs, labels, predictions)
+    plot_examples(image_pairs, predictions)
 
     # plot first 10 FNs
     image_pairs = []
@@ -290,30 +349,42 @@ def main(args):
     predictions = np.zeros((10, 1))
     index = 0
     while len(image_pairs) < 10:
-        if y_pred[index] >= DISTANCE_THRESHOLD and te_y[index] == 1:
+        if not assessment_criteria(te_pred[index], DISTANCE_THRESHOLD) and te_y[index] == 1:
             image_pairs += [[te_pairs[index, 0], te_pairs[index, 1]]]
             labels[len(image_pairs) - 1] = te_y[index]
-            predictions[len(image_pairs) - 1, 0] = y_pred[index, 0]
+            predictions[len(image_pairs) - 1, 0] = te_pred[index, 0]
         index += 1
     image_pairs = np.array(image_pairs)
 
-    plot_examples(image_pairs, labels, predictions)
+    plot_examples(image_pairs, predictions)
 
     # classify (using minimum distance)
     print('Classifying test set...')
     min_correct_counter = 0
     median_correct_counter = 0
     mean_correct_counter = 0
-    for t in range(x_test.shape[0]):
+    for t in tqdm(range(x_test.shape[0])):
         test_img = x_test[t]
         test_img_label = y_test[t]
         n = min([len(tr_digit_indices[d]) for d in range(NUM_CLASSES)]) - 1
-        min_aggregated_distance = 999
+
+        if args.model == 'simple_head':
+            # minimum
+            assessment_criteria = lambda new, prev: new < prev
+            min_aggregated_distance = 999
+            mean_aggregated_distance = 999
+            median_aggregated_distance = 999
+        else:
+            # maximum
+            assessment_criteria = lambda new, prev: new > prev
+            min_aggregated_distance = -999
+            mean_aggregated_distance = -999
+            median_aggregated_distance = -999
+
         min_aggregated_distance_label = -1
-        mean_aggregated_distance = 999
         mean_aggregated_distance_label = -1
-        median_aggregated_distance = 999
         median_aggregated_distance_label = -1
+
         for d in range(NUM_CLASSES):
             image_pairs = []
             for i in range(n):
@@ -324,17 +395,17 @@ def main(args):
             predictions = model.predict([image_pairs[:, 0], image_pairs[:, 1]])
 
             min_distance = np.min(predictions)
-            if min_distance < min_aggregated_distance:
+            if assessment_criteria(min_distance, min_aggregated_distance):
                 min_aggregated_distance = min_distance
                 min_aggregated_distance_label = d
 
             median_distance = np.median(predictions)
-            if median_distance < median_aggregated_distance:
+            if assessment_criteria(median_distance, median_aggregated_distance):
                 median_aggregated_distance = median_distance
                 median_aggregated_distance_label = d
 
             mean_distance = np.mean(predictions)
-            if mean_distance < mean_aggregated_distance:
+            if assessment_criteria(mean_distance, mean_aggregated_distance):
                 mean_aggregated_distance = mean_distance
                 mean_aggregated_distance_label = d
 
@@ -360,10 +431,12 @@ if __name__ == '__main__':
                         help='The maximum number of training epochs')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='The batch size while training')
-    parser.add_argument('--examples_per_class', type=int, default=10,
+    parser.add_argument('--examples_per_class', type=int, default=25,
                         help='Maximum number of examples per class')
-    parser.add_argument('--base_network', type=str, default='cnn',
-                        help='The base network model (nn, cnn) used in the siamese')
+    parser.add_argument('--model', choices=['simple_head', 'dense_head'], type=str, default='dense_head',  # TODO feature-wise-dense https://www.kaggle.com/seesee/siamese-pretrained-0-822
+                        help='The network model of the siamese, which mainly differs in the head model used')
+    parser.add_argument('--base_network', choices=['cnn', 'nn'], type=str, default='cnn',  # TODO fcn base model
+                        help='The base network model used in the siamese')
     parser.add_argument('--early_stopping', type=bool, default=True,
                         help='Whether to use early stopping or not')
     args = parser.parse_args()

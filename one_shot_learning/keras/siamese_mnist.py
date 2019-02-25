@@ -109,11 +109,56 @@ def create_base_cnn_network(input_shape):
     return tf.keras.models.Model(inputs, x)
 
 
+def create_base_fcn_network(input_shape):
+    """Base fully convolutional network to be shared (eq. to feature extraction).
+    """
+    inputs = tf.keras.layers.Input(shape=input_shape)
+    x = tf.keras.layers.Conv2D(32, kernel_size=(7, 7), strides=(1, 1), padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(5e-5))(inputs)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Dropout(0.4)(x)
+    x = tf.keras.layers.Conv2D(64, kernel_size=(5, 5), strides=(2, 2), padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(5e-5))(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Dropout(0.5)(x)
+    x = tf.keras.layers.Conv2D(64, kernel_size=(3, 3), strides=(1, 1), padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(5e-5))(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Dropout(0.5)(x)
+    x = tf.keras.layers.Conv2D(128, kernel_size=(3, 3), strides=(2, 2), padding='same',
+                               kernel_regularizer=tf.keras.regularizers.l2(5e-5))(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Dropout(0.5)(x)
+    x = tf.keras.layers.Conv2D(128, kernel_size=(3, 3), strides=(1, 1), padding='valid',
+                               kernel_regularizer=tf.keras.regularizers.l2(5e-5))(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Dropout(0.5)(x)
+    x = tf.keras.layers.Conv2D(256, kernel_size=(3, 3), strides=(1, 1), padding='valid',
+                               kernel_regularizer=tf.keras.regularizers.l2(5e-5))(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Dropout(0.5)(x)
+    x = tf.keras.layers.Conv2D(256, kernel_size=(3, 3), strides=(1, 1), padding='valid',
+                               kernel_regularizer=tf.keras.regularizers.l2(5e-5))(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    x = tf.keras.layers.Dropout(0.5)(x)
+    x = tf.keras.layers.Flatten()(x)
+    return tf.keras.models.Model(inputs, x)
+
+
 def create_simple_siamese_model(base_network_model, input_shape):
     if base_network_model == 'nn':
         base_network = create_base_nn_network(input_shape)
     elif base_network_model == 'cnn':
         base_network = create_base_cnn_network(input_shape)
+    elif base_network_model == 'fcn':
+        base_network = create_base_fcn_network(input_shape)
     else:
         raise Exception('Unknown base network model type.')
 
@@ -138,6 +183,8 @@ def create_dense_siamese_model(base_network_model, input_shape):
         base_network = create_base_nn_network(input_shape)
     elif base_network_model == 'cnn':
         base_network = create_base_cnn_network(input_shape)
+    elif base_network_model == 'fcn':
+        base_network = create_base_fcn_network(input_shape)
     else:
         raise Exception('Unknown base network model type.')
 
@@ -435,7 +482,7 @@ if __name__ == '__main__':
                         help='Maximum number of examples per class')
     parser.add_argument('--model', choices=['simple_head', 'dense_head'], type=str, default='dense_head',  # TODO feature-wise-dense https://www.kaggle.com/seesee/siamese-pretrained-0-822
                         help='The network model of the siamese, which mainly differs in the head model used')
-    parser.add_argument('--base_network', choices=['cnn', 'nn'], type=str, default='cnn',  # TODO fcn base model
+    parser.add_argument('--base_network', choices=['fcn', 'cnn', 'nn'], type=str, default='cnn',
                         help='The base network model used in the siamese')
     parser.add_argument('--early_stopping', type=bool, default=True,
                         help='Whether to use early stopping or not')

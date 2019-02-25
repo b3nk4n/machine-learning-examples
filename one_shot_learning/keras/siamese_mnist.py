@@ -212,6 +212,46 @@ def create_dense_siamese_model(base_network_model, input_shape):
     return model
 
 
+def create_per_feature_nn_siamese_model(base_network_model, input_shape):
+    if base_network_model == 'nn':
+        base_network = create_base_nn_network(input_shape)
+    elif base_network_model == 'cnn':
+        base_network = create_base_cnn_network(input_shape)
+    elif base_network_model == 'fcn':
+        base_network = create_base_fcn_network(input_shape)
+    else:
+        raise Exception('Unknown base network model type.')
+
+    input_a = tf.keras.layers.Input(shape=input_shape)
+    input_b = tf.keras.layers.Input(shape=input_shape)
+
+    processed_a = base_network(input_a)
+    processed_b = base_network(input_b)
+
+    mid = 32
+    x1 = tf.keras.layers.Lambda(lambda x: x[0] * x[1])([processed_a, processed_b])
+    x2 = tf.keras.layers.Lambda(lambda x: x[0] + x[1])([processed_a, processed_b])
+    x3 = tf.keras.layers.Lambda(lambda x: tf.keras.backend.abs(x[0] - x[1]))([processed_a, processed_b])
+    x4 = tf.keras.layers.Lambda(lambda x: tf.keras.backend.square(x))(x3)
+    x = tf.keras.layers.Concatenate()([x1, x2, x3, x4])
+    x = tf.keras.layers.Reshape((4, base_network.output_shape[1], 1), name='reshape1')(x)
+
+    # Per feature NN with shared weight is implemented using CONV2D with appropriate stride.
+    x = tf.keras.layers.Conv2D(mid, kernel_size=(4, 1), activation='relu', padding='valid')(x)
+    x = tf.keras.layers.Reshape((base_network.output_shape[1], mid, 1))(x)
+    x = tf.keras.layers.Conv2D(1, kernel_size=(1, mid), activation='linear', padding='valid')(x)
+    x = tf.keras.layers.Flatten(name='flatten')(x)
+
+    # Weighted sum implemented as a Dense layer.
+    x = tf.keras.layers.Dense(1, use_bias=True, activation='sigmoid', name='weighted-average')(x)
+    model = tf.keras.models.Model([input_a, input_b], x, name='head')
+
+    opt = tf.keras.optimizers.RMSprop()
+    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
+
+    return model
+
+
 def compute_accuracy(y_true, y_pred):
     """Compute classification accuracy with a fixed threshold on distances.
     """
@@ -300,6 +340,8 @@ def main(args):
         model = create_simple_siamese_model(args.base_network, input_shape)
     elif args.model == 'dense_head':
         model = create_dense_siamese_model(args.base_network, input_shape)
+    elif args.model == 'per_feature_nn':
+        model = create_per_feature_nn_siamese_model(args.base_network, input_shape)
     else:
         raise Exception('Unknown model type.')
 
@@ -471,7 +513,7 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()  # TODO augmentation param
+    parser = argparse.ArgumentParser()
     parser.add_argument('--min_epochs', type=int, default=0,
                         help='The minimum number of (pre-)training epochs, before early-stopping kicks in')
     parser.add_argument('--max_epochs', type=int, default=500,
@@ -480,7 +522,8 @@ if __name__ == '__main__':
                         help='The batch size while training')
     parser.add_argument('--examples_per_class', type=int, default=25,
                         help='Maximum number of examples per class')
-    parser.add_argument('--model', choices=['simple_head', 'dense_head'], type=str, default='dense_head',  # TODO feature-wise-dense https://www.kaggle.com/seesee/siamese-pretrained-0-822
+    parser.add_argument('--model', choices=['simple_head', 'dense_head', 'per_feature_nn'], type=str,
+                        default='per_feature_nn',
                         help='The network model of the siamese, which mainly differs in the head model used')
     parser.add_argument('--base_network', choices=['fcn', 'cnn', 'nn'], type=str, default='cnn',
                         help='The base network model used in the siamese')

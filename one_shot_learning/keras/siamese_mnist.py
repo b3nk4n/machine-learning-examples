@@ -1,13 +1,5 @@
 """
 Trains a Siamese MLP on pairs of digits from the MNIST dataset.
-It follows Hadsell-et-al.'06 [1] by computing the Euclidean distance on the
-output of the shared network and by optimizing the contrastive loss (see paper
-for mode details).
-# References
-- Dimensionality Reduction by Learning an Invariant Mapping
-    http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
-Gets to 97.2% test accuracy after 20 epochs.
-2 seconds per epoch on a Titan X Maxwell GPU
 """
 from __future__ import absolute_import
 from __future__ import print_function
@@ -45,25 +37,26 @@ def contrastive_loss(y_true, y_pred):
     return tf.keras.backend.mean(y_true * sqaure_pred + (1 - y_true) * margin_square)
 
 
-def create_pairs(x, digit_indices):
+def create_pairs(x, digit_indices, oversample_factor=1):
     """Positive and negative pair creation.
     Alternates between positive and negative pairs.
     """
     pairs = []
     labels = []
     n = min([len(digit_indices[d]) for d in range(NUM_CLASSES)])
-    for d in range(NUM_CLASSES):
-        for i in range(n - 1):
-            for j in range(i + 1, n):
-                z1, z2 = digit_indices[d][i], digit_indices[d][j]
-                pairs += [[x[z1], x[z2]]]
+    for o in range(oversample_factor):
+        for d in range(NUM_CLASSES):
+            for i in range(n - 1):
+                for j in range(i + 1, n):
+                    z1, z2 = digit_indices[d][i], digit_indices[d][j]
+                    pairs += [[x[z1], x[z2]]]
 
-                rand_inc = np.random.randint(1, NUM_CLASSES)
-                rand_idx = np.random.randint(0, len(digit_indices[d]))
-                dn = (d + rand_inc) % NUM_CLASSES
-                z1, z2 = digit_indices[d][i], digit_indices[dn][rand_idx]
-                pairs += [[x[z1], x[z2]]]
-                labels += [1, 0]
+                    rand_inc = np.random.randint(1, NUM_CLASSES)
+                    rand_idx = np.random.randint(0, len(digit_indices[d]))
+                    dn = (d + rand_inc) % NUM_CLASSES
+                    z1, z2 = digit_indices[d][i], digit_indices[dn][rand_idx]
+                    pairs += [[x[z1], x[z2]]]
+                    labels += [1, 0]
     return np.array(pairs), np.array(labels)
 
 
@@ -328,10 +321,10 @@ def main(args):
 
     # create training+test positive and negative pairs
     tr_digit_indices = get_digit_indices(y_train, args.examples_per_class)
-    tr_pairs, tr_y = create_pairs(x_train, tr_digit_indices)
+    tr_pairs, tr_y = create_pairs(x_train, tr_digit_indices, args.oversample)
 
     te_digit_indices = get_digit_indices(y_test, args.examples_per_class)
-    te_pairs, te_y = create_pairs(x_test, te_digit_indices)
+    te_pairs, te_y = create_pairs(x_test, te_digit_indices, args.oversample)
 
     # network definition
     input_shape = x_train.shape[1:]
@@ -523,11 +516,14 @@ if __name__ == '__main__':
     parser.add_argument('--examples_per_class', type=int, default=25,
                         help='Maximum number of examples per class')
     parser.add_argument('--model', choices=['simple_head', 'dense_head', 'per_feature_nn'], type=str,
-                        default='per_feature_nn',
+                        default='dense_head',
                         help='The network model of the siamese, which mainly differs in the head model used')
     parser.add_argument('--base_network', choices=['fcn', 'cnn', 'nn'], type=str, default='cnn',
                         help='The base network model used in the siamese')
     parser.add_argument('--early_stopping', type=bool, default=True,
                         help='Whether to use early stopping or not')
+    parser.add_argument('--oversample', type=int, default=2,
+                        help='Oversampling factor, that indicates the number of time the identical pair ' +
+                             'of a positive-label is added, in order to get more different negative-label pairs')
     args = parser.parse_args()
     main(args)

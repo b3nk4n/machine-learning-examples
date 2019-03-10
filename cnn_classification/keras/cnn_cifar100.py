@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import tensorflow as tf
 
-NUM_CLASSES = 10
+NUM_CLASSES = 100
 
 
 def get_digit_indices(labels, examples_per_class):
@@ -11,13 +11,13 @@ def get_digit_indices(labels, examples_per_class):
 
 
 def main(args):
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar100.load_data(label_mode='fine')
     x_train, x_test = x_train / 255.0, x_test / 255.0
 
     # limit training set to simulate overfitting, and to compare to one_shot_learning/keras/siamese_mnist.py
     tr_digit_indices = get_digit_indices(y_train, args.examples_per_class)
 
-    x_train_limited = np.zeros((args.examples_per_class * NUM_CLASSES, 28, 28))
+    x_train_limited = np.zeros((args.examples_per_class * NUM_CLASSES, 32, 32, 3))
     y_train_limited = np.zeros(args.examples_per_class * NUM_CLASSES)
     index = 0
     for d in range(NUM_CLASSES):
@@ -26,11 +26,7 @@ def main(args):
             y_train_limited[index] = y_train[tr_digit_indices[d][i]]
             index += 1
 
-    if args.model == 'nn':
-        model = create_nn_model()
-    else:
-        model = create_cnn_model()
-
+    model = create_cnn_model()
     model.compile(optimizer=tf.keras.optimizers.Adam(),
                   loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
@@ -43,35 +39,18 @@ def main(args):
     model.evaluate(x_test, y_test, verbose=2)
 
 
-def create_nn_model():
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-6)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.Activation('relu'),
-        tf.keras.layers.Dropout(0.225),
-        tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-6)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.Activation('relu'),
-        tf.keras.layers.Dropout(0.225),
-        tf.keras.layers.Dense(NUM_CLASSES, activation=tf.nn.softmax, kernel_regularizer=tf.keras.regularizers.l2(5e-6))
-    ])
-    return model
-
-
 def create_cnn_model():
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Reshape((28, 28, 1)),
         tf.keras.layers.Conv2D(32, kernel_size=(5, 5), strides=(1, 1), padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(5e-4)),
         tf.keras.layers.Activation('relu'),
         tf.keras.layers.MaxPool2D(),
-        tf.keras.layers.Dropout(0.225),
+        tf.keras.layers.Dropout(0.5),
         tf.keras.layers.Conv2D(64, kernel_size=(3, 3), strides=(1, 1), padding='same',
                                kernel_regularizer=tf.keras.regularizers.l2(5e-4)),
         tf.keras.layers.Activation('relu'),
         tf.keras.layers.MaxPool2D(),
-        tf.keras.layers.Dropout(0.225),
+        tf.keras.layers.Dropout(0.5),
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(128, kernel_regularizer=tf.keras.regularizers.l2(5e-4)),
         tf.keras.layers.BatchNormalization(),
@@ -84,13 +63,11 @@ def create_cnn_model():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', type=int, default=25,
+    parser.add_argument('--epochs', type=int, default=100,
                         help='The number of training epochs')
-    parser.add_argument('--batch_size', type=int, default=16,
+    parser.add_argument('--batch_size', type=int, default=64,
                         help='The batch size while training')
     parser.add_argument('--examples_per_class', type=int, default=25,
                         help='Maximum number of examples per class')
-    parser.add_argument('--model', type=str, default='cnn',
-                        help='The network model (nn, cnn) used')
     args = parser.parse_args()
     main(args)
